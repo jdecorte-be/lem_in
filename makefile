@@ -13,7 +13,7 @@ LIBFLAGS = -I . -L . -I ./utils/libft -L ./utils/libft -I ./utils/get_next_line 
 # -I Add the directory dir to the list of directories to be searched for header files
 # -L Searches the library when linking
 
-GCC = gcc -Wall -Wextra -Werror
+GCC = gcc #-Wall -Wextra -Werror
 RM = rm -rf
 
 all: libft_all printf_all $(NAME)

@@ -5,11 +5,16 @@
 #include "utils/get_next_line/get_next_line.h"
 #include "utils/ft_printf/printf.h"
 
+#include <stdbool.h>
+
 typedef struct s_room
 {
   char *name;
   int pos_x;
   int pos_y;
+  int h;
+  int visited;
+
   struct s_room *next; //Linked list
   struct s_room **connections; //To create a graph. Represents connections between rooms by tunnels.
 } t_room;

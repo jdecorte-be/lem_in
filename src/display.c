@@ -107,10 +107,10 @@ static void view_conns(t_room *room)
   int i;
 
   i = 0;
-  ft_printf("%s:\n", room->name);
+  ft_printf("%s:%d\n", room->name, room->h);
   while (room->connections[i])
   {
-    ft_printf("  %s", room->connections[i]->name);
+    ft_printf("  %s/%d", room->connections[i]->name, room->connections[i]->h);
     i++;
   }
   ft_printf("\n");

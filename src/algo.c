@@ -1,102 +1,28 @@
 #include "../lem_in.h"
 
-int g_ant; //Used for debugging
+static t_room *next_min_node(t_antFarm *af, t_room *room) {
+  unsigned int min_h = UINT_MAX;
+  t_room **edge = room->connections;
+  t_room *edge_with_min_h = NULL;
 
-static int timing(t_room **visited, t_room **origin, t_room *final, t_room *start)
-{
-  int i;
-  int _time;
-  int occurence;
-  t_room *search;
-
-  _time = 0;
-  if (final == start)
-    return (room_array_len(visited) - 1);
-  search = final;
-  while (19)
-  {
-    i = 0;
-    while (visited[i] && visited[i] != search)
-      i++;
-    if (!visited[i] || !origin[i])
-      ft_error("lem-in: Error: Internal error find shortest path.\n");
-    occurence = room_occurence(visited, origin[i]);
-    while (occurence) //If multiple instances follow of same room, you know he stayed in that round for multiple rounds
-    {
-      // ft_printf("OCC: %s:%s\n", origin[i]->name, visited[i]->name);
-      _time++;
-      occurence--;
+  for(int i = 0; edge[i]; i++) {
+    if(edge[i] != af->end_room && edge[i]->h < min_h
+      && edge[i]->visited == 0 && (edge[i]->h || edge[i] == af->start_room)) {
+        min_h = edge[i]->h;
+        edge_with_min_h = edge[i];
     }
-    if (origin[0] == origin[i])
-      break ;
-    search = origin[i];
   }
-  return _time;
+  return edge_with_min_h;
 }
 
-static int ant_collision(t_room *next_room, t_room ***prior_ants_paths,
-      t_room **visited, t_room **origin, t_room *mother_room, t_antFarm *af)
-{
-  int _time;
 
-  if (!prior_ants_paths || !prior_ants_paths[0])
-    return 0;
-  _time = timing(visited, origin, mother_room, af->start_room);
-  // if (g_ant == 3)
-  // {
-  //   ft_printf("\nROOM: %s:%s\nTIMING: %d\n", mother_room->name, next_room->name, _time);
-  //   view_stacks(NULL, visited, origin);
-  //   // ft_printf("Time: %d\n", _time);
-  //   // display_paths(prior_ants_paths);
-  // }
-  for (int i = 0; prior_ants_paths[i] ; i++)
-  {
-    // if (g_ant == 3)
-    //   ft_printf("COLLISION? %s|%s\n", prior_ants_paths[i][_time]->name, next_room->name);
-    if (prior_ants_paths[i][_time+1] == next_room)
-      return 1;
-  }
-  return 0;
-}
-
-static void shortest_path(t_room **visited, t_room **origin, t_room *final, t_room **path)
-{
-  int i;
-  t_room *search;
-  int occurence;
-
-  search = final;
-  add_room_front_array(path, final);
-  while (19)
-  {
-    i = 0;
-    while (visited[i] && visited[i] != search)
-      i++;
-    // ft_printf("O %s:%s\n", origin[i]->name, visited[i]->name);
-    if (!visited[i] || !origin[i])
-      ft_error("lem-in: Error: Internal error find shortest path.\n");
-    occurence = room_occurence(visited, origin[i]);
-    while (occurence)
-    {
-      // ft_printf("I %s:%s\n", origin[i]->name, visited[i]->name);
-      add_room_front_array(path, origin[i]);
-      occurence--;
-    }
-    if (origin[0] == origin[i]) //If we arrive to starting room we know the next room
-      break ;
-    search = origin[i];
-  }
-}
-
-static t_room **ant_move(t_antFarm *af, t_room *ant_room,
-      t_room ***prior_ants_paths) //Here we use the "Breadth First Search" algorithm
+static int bfs(t_antFarm *af)
 {
   t_room **visited;
-  t_room **origin;
   t_room **queue;
-  t_room **path;
-  t_room *current;
-  int i;
+  t_room *ant_room = af->start_room;
+
+  int rear = 0, front = 0;
 
   if (!(visited = malloc(sizeof(t_room *) * (room_amount(af) + 3) * af->ants_amount)))
     ft_malloc_error();
@@ -104,92 +30,47 @@ static t_room **ant_move(t_antFarm *af, t_room *ant_room,
   if (!(queue = malloc(sizeof(t_room *) * (room_amount(af) + 3) * af->ants_amount)))
     ft_malloc_error();
   *queue = NULL;
-  if (!(origin = malloc(sizeof(t_room *) * (room_amount(af) + 3) * af->ants_amount)))
-    ft_malloc_error();
-  *origin = NULL;
-  if (!(path = malloc(sizeof(t_room *) * (room_amount(af) + 3) * af->ants_amount)))
-    ft_malloc_error();
-  for (int l = 0; l <= room_amount(af) + 1; l++) { path[l] = NULL; }
-  add_room_end_array(origin, ant_room);
+
   add_room_end_array(visited, ant_room);
-  add_room_end_array(queue, ant_room);
-  while (19)
+  queue[rear++] = ant_room;
+
+  while (front < rear)
   {
-    if (!queue[0])
+    t_room *current = queue[front++];
+
+    for (int i = 0; current->connections[i]; i++)
     {
-      if (!prior_ants_paths[0])
-        break ;
-      //If you are blocked due to the other ants, stay in same room
-      current = visited[room_array_len(visited)-1];
-      add_room_end_array(queue, current);
-      add_room_end_array(origin, current);
-      add_room_end_array(visited, current);
-    }
-    i = 0;
-    // if (g_ant == 3)
-    //   view_stacks(queue, visited, origin);
-    while (queue[0]->connections[i])
-    {
-      if (queue[0]->connections[i] == af->end_room)
+      t_room *adj = current->connections[i];
+      if((adj->h == 0 && adj != af->start_room) || adj == af->end_room)
+        adj->h = current->h + 1;
+
+      if (!room_in_array(visited, current->connections[i]))
       {
-        if (queue[0] == ant_room) {
-          path[0] = ant_room;
-          path[1] = af->end_room;
-          path[2] = NULL;
-          // view_path(path, 1);
-          // exit(0);
-          free(visited);
-          free(origin);
-          free(queue);
-          return path;
-        }
-        shortest_path(visited, origin, queue[0], path);
-        add_room_end_array(path, af->end_room);
-        // view_path(path, 1);
-        // exit(0);
-        free(visited);
-        free(origin);
-        free(queue);
-        return path;
+        add_room_end_array(visited, adj);
+        queue[rear++] = adj;
       }
-      if (room_in_array(visited, queue[0]->connections[i]) || //If you already visited the room neglect it
-            ant_collision(queue[0]->connections[i], prior_ants_paths, //If the room is already filled with ant neglect it
-            visited, origin, queue[0], af)) {
-        i++;
-        continue;
-      } else {
-        add_room_end_array(queue, queue[0]->connections[i]);
-        add_room_end_array(origin, queue[0]);
-        add_room_end_array(visited, queue[0]->connections[i]);
+
+      if(adj == af->end_room) {
+        t_room *test = next_min_node(af, adj);
+        printf("%s\n", test->name);
+        t_room *test2 = next_min_node(af, test);
+        printf("%s\n", test2->name);
       }
-      i++;
     }
-    remove_room_front_array(queue);
   }
-  free(visited);
-  free(origin);
-  free(queue);
-  free(path);
-  return NULL;
+  return 0;
+}
+
+int edmondsKarp(t_antFarm *af) {
+  int max_flow = 0;
+
+  while(19) {
+    int flow = bfs(af);
+  }
 }
 
 void algo(t_antFarm *af)
 {
-  t_room ***ant_path;
-
-  if (!(ant_path = malloc(sizeof(t_room *) * af->ants_amount)))
-    ft_malloc_error();
-  ant_path[0] = NULL;
-  // if (!ant_move(af, af->start_room, ant_path))
-  //   ft_error("lem-in: Error: Start and end room are not linked.\n");
-  for (int ant = 1; ant <= af->ants_amount; ant++)
-  {
-      g_ant = ant;
-      if (!(ant_path[ant-1] = ant_move(af, af->start_room, ant_path)))
-        ft_error("lem-in: Error: Start and end room are not linked.\n");
-      ant_path[ant] = NULL;
-  }
-  display_results(ant_path);
-  for (int i = 0; i < af->ants_amount; i++) { free(ant_path[i]); }
-  free(ant_path);
+  bfs(af);
+  // view_graph(af);
 }
