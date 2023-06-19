@@ -15,12 +15,56 @@ static t_room *next_min_node(t_antFarm *af, t_room *room) {
   return edge_with_min_h;
 }
 
+unsigned int path_len(t_antFarm *af, t_room *sink) {
+  unsigned int len = 0;
+  t_room *node = sink;
+  t_room *next;
 
-static int bfs(t_antFarm *af)
+  while(node) {
+    if(af->start_room == node) {
+      return len;
+    }
+    if((next = next_min_node(af, node)) == NULL || next->h >= node->h)
+      return 0;
+    len++;
+    node = next;
+  }
+  return 0;
+}
+
+static t_room **make_path(t_antFarm *af) {
+  t_room *node = af->end_room;
+  t_room *next;
+  t_room **path;
+  int len;
+
+  if(!(len = path_len(af, af->end_room)))
+    return 0;
+
+  if (!(path = malloc(sizeof(t_room *) * (len + 1))))
+    ft_malloc_error();
+  for (int l = 0; l <= len + 1; l++) { path[l] = NULL; }
+  
+  while(node) {
+    path[len] = node;
+    if(node == af->start_room || len == 0)
+      break;
+    len--;
+    node->visited = 1;
+    next = next_min_node(af, node);
+    node = next;
+  }
+  return path;
+}
+
+
+
+static t_room **bfs(t_antFarm *af, t_room ***ant_path)
 {
   t_room **visited;
   t_room **queue;
   t_room *ant_room = af->start_room;
+  t_room **path;
 
   int rear = 0, front = 0;
 
@@ -49,28 +93,33 @@ static int bfs(t_antFarm *af)
         add_room_end_array(visited, adj);
         queue[rear++] = adj;
       }
-
       if(adj == af->end_room) {
-        t_room *test = next_min_node(af, adj);
-        printf("%s\n", test->name);
-        t_room *test2 = next_min_node(af, test);
-        printf("%s\n", test2->name);
+        if((path = make_path(af)))
+          return path;
+        return 0;
       }
     }
   }
   return 0;
 }
 
-int edmondsKarp(t_antFarm *af) {
-  int max_flow = 0;
-
-  while(19) {
-    int flow = bfs(af);
-  }
-}
 
 void algo(t_antFarm *af)
 {
-  bfs(af);
+  t_room ***ant_path;
+
+  if (!(ant_path = malloc(sizeof(t_room *) * (af->ants_amount + 1))))
+    ft_malloc_error();
+  for(int i = 0; i < af->ants_amount; i++)
+    ant_path[i] = NULL;
+
+  for(int i = 0; i < af->ants_amount; i++) {
+    ant_path[i] = bfs(af, ant_path);
+    for (int j = 0; ant_path[i][j]; j++)
+      printf("%s ", ant_path[i][j]->name);
+  }
+
+  // ant_path[0] = bfs(af, ant_path);
+
   // view_graph(af);
 }
